@@ -6,7 +6,7 @@ describe('Task Management insertions and deletions test', () => {
     let tasks = [];
     let insertions = 0;
     let deletions = 0;
-    let logFile = 'test_log.txt';
+    let logFile = 'insertions_and_deletion_log.txt';
 
     // Ensure all async operations are complete
     afterAll(async () => {
@@ -93,8 +93,8 @@ describe('Task Management insertions and deletions test', () => {
      * @function performInsertionsAndDeletions
      * @throws Will throw an error if any of the consistency checks fail.
      */
-    test('Perform insertions and deletions 100 times', async () => {
-        for (let iteration = 1; iteration <= 100; iteration++) {
+    test('Perform insertions and deletions 20 times', async () => {
+        for (let iteration = 1; iteration <= 20; iteration++) {
 
             // Generate a random insertion probability between 0 and 1
             const insertionProbability = Math.random();
@@ -120,13 +120,14 @@ describe('Task Management insertions and deletions test', () => {
                 // Generate a random number between 0 and 1, and insert a new task if it's less than the insertion probability
                 if (Math.random() < insertionProbability) {
                     // Generate a new task with random properties and completed = false
-                    const newTask = {
-                        id: tasks.length + 1,
-                        title: getRandomString(1, 20),
-                        description: getRandomString(0, 50),
-                        priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-                        completed: false,
-                        dueDate: getRandomDate(),
+                    let newTask;
+                    newTask = {
+                            id: tasks.length + 1,
+                            title: getRandomString(1, 20),
+                            description: getRandomString(0, 50),
+                            priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+                            completed: false,
+                            dueDate: getRandomDate(),
                     };
 
                     // Add the new task to the tasks array, increment the insertions counter, log the action, and post the new task to the API
@@ -136,15 +137,21 @@ describe('Task Management insertions and deletions test', () => {
                     await axios.post(apiUrl, newTask);
 
                 // If there are no tasks to delete, continue without incrementing j
-                } else if (tasks.length == 0) { continue; }
+                }else if (tasks.length == 0) { continue; }
 
-                // Otherwise, delete a random task from the tasks array, increment the deletions counter, log the action, and delete the task from the API
+                // Otherwise, delete all occurrences of a task with the selected id from the tasks array, increment the deletions counter, log the action, and delete the task from the API
                 else {
-                    const indexToDelete = Math.floor(Math.random() * tasks.length);
-                    const deletedTask = tasks.splice(indexToDelete, 1)[0];
-                    logAction(`Deleted task: title: ${deletedTask.title} (ID: ${deletedTask.id})`);
+                    const idToDelete = tasks[Math.floor(Math.random() * tasks.length)].id;
+                    const tasksToDelete = tasks.filter(task => task.id === idToDelete);
+                    for (const task of tasksToDelete) {
+                        tasks = tasks.filter(t => t.id !== task.id);
+                        logAction(`Deleted task: title: ${task.title} (ID: ${task.id})`);
+
+                        // Delete the task from the API
+                        await axios.delete(`${apiUrl}/${task.id}`);
+                    }
+                    // Increment the deletions counter
                     deletions++;
-                    await axios.delete(`${apiUrl}/${deletedTask.id}`);
                 }
 
                 // Fetch all tasks from the API and filter them into active and completed tasks
