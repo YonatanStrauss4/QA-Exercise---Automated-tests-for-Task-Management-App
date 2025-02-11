@@ -13,7 +13,10 @@ describe('Task Management insertions and deletions test', () => {
         await axios.get(apiUrl); 
     });
 
-     // A function to Reset all tasks before starting
+    /**
+     * Deletes all tasks from the API to reset the task list.
+     * This ensures each test iteration starts with an empty database.
+     */    
     const resetTasks = async () => {
         try {
             const response = await axios.get(apiUrl);

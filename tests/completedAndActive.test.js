@@ -95,19 +95,28 @@ describe('Task Completion Tracking Test (Repeated 100 times)', () => {
      * Runs 100 iterations of the task tracking test.
      */
     test('Run completion tracking test 100 times', async () => {
-        fs.writeFileSync(logFile, 'Completion Test Log:\n'); // Reset log file
-
+    
         for (let iteration = 1; iteration <= 100; iteration++) {
+            // Reset log file
+            fs.writeFileSync(logFile, 'Completion Test Log:\n'); 
+
+            // Log the current iteration
             fs.appendFileSync(logFile, `\n\n=== Iteration ${iteration} ===\n\n`);
-            await resetTasks(); // Reset all tasks before starting
+            
+            // Reset all tasks before starting
+            await resetTasks(); 
             let tasks = [];
             let completedCount = 0;
             let activeCount = 0;
 
-            for (let i = 0; i < 500; i++) {
+            // Perform 500 random actions
+            let j = 0;
+            while (j < 1000) {
+                // Randomly choose an action to perform
                 const randomAction = Math.random();
                 if (randomAction < 0.25) {
-                    // Insert a new task
+
+                    // Insert a new task with random attributes
                     const newTask = {
                         id: tasks.length + 1,
                         title: getRandomString(1, 20),
@@ -117,47 +126,91 @@ describe('Task Completion Tracking Test (Repeated 100 times)', () => {
                         dueDate: getRandomDate(),
                     };
 
+                    // Update local task list, increment counters, log action, and send POST request
                     tasks.push(newTask);
                     activeCount++;
                     logAction(`Inserted task: ${newTask.title} (ID: ${newTask.id})`);
                     await axios.post(apiUrl, newTask);
+                } 
 
-                } else if (tasks.length > 0 && randomAction < 0.5) {
-                    // Delete a task
+                // Delete an existing random task
+                else if (0.25 <= randomAction < 0.5) {
+
+                    // Skip if no tasks available and dont increment j
+                    if (tasks.length == 0) continue;
+
+                    // Delete a random task from the list
                     const indexToDelete = Math.floor(Math.random() * tasks.length);
                     const deletedTask = tasks.splice(indexToDelete, 1)[0];
                     logAction(`Deleted task: ${deletedTask.title} (ID: ${deletedTask.id})`);
+
+                    // Update counters and send DELETE request
                     if (deletedTask.completed) {
                         completedCount--;
                     } else {
                         activeCount--;
                     }
                     await axios.delete(`${apiUrl}/${deletedTask.id}`);
-                } else if (randomAction < 0.75) {
-                    // Complete an active task
+                } 
+                
+                // Complete an active task
+                else if (randomAction < 0.75) {
                     const activeTasks = tasks.filter(task => !task.completed);
+
+                    // Skip if no active tasks available and dont increment j
                     if (activeTasks.length === 0) continue;
 
+                    // Mark a random active task as completed
                     const taskToComplete = activeTasks[Math.floor(Math.random() * activeTasks.length)];
                     taskToComplete.completed = true;
                     await axios.put(`${apiUrl}/${taskToComplete.id}`, { completed: true });
 
+                    // Update counters and log action
                     completedCount++;
                     activeCount--;
                     logAction(`Completed task: ${taskToComplete.title} (ID: ${taskToComplete.id})`);
+
                 } else {
+
                     // Reactivate a completed task
                     const completedTasks = tasks.filter(task => task.completed);
+
+                    // Skip if no completed tasks available and dont increment j
                     if (completedTasks.length === 0) continue;
 
+                    // Mark a random completed task as active
                     const taskToActivate = completedTasks[Math.floor(Math.random() * completedTasks.length)];
                     taskToActivate.completed = false;
                     await axios.put(`${apiUrl}/${taskToActivate.id}`, { completed: false });
 
+                    // Update counters and log action
                     completedCount--;
                     activeCount++;
                     logAction(`Activated task: ${taskToActivate.title} (ID: ${taskToActivate.id})`);
                 }
+
+
+                // Fetch all tasks from the API and filter them into active and completed tasks
+                const allTasksResponse = await axios.get(apiUrl);
+                const allTasks = allTasksResponse.data;
+                
+                // Verify counts
+                // Check that the number of completed tasks matches the expected count
+                try {
+                    expect(allTasks.filter(task => task.completed).length).toBe(completedCount);
+                } catch (error) {
+                    logError(`Completed count mismatch. Expected: ${completedCount}, Found: ${allTasks.filter(task => task.completed).length}`);
+                    throw error;
+                }
+
+                // Check that the number of active tasks matches the expected count
+                try {
+                    expect(allTasks.filter(task => !task.completed).length).toBe(activeCount);
+                } catch (error) {
+                    logError(`Active count mismatch. Expected: ${activeCount}, Found: ${allTasks.filter(task => !task.completed).length}`);
+                    throw error;
+                }
+                j++;
             }
         }
     }, 60000 * 100); // Extended timeout for 100 iterations
